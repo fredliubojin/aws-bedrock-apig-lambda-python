@@ -21,30 +21,30 @@ class AwsBedrockApigLambdaPythonStack(Stack):
                                   rest_api_name='BedrockApiGatewayWithCors')
 
         # setting up example entity with plan and key
-        example_entity = base_api.root.add_resource(
-            'example',
+        claude2_entity = base_api.root.add_resource(
+            'bedrock-claude2',
             default_cors_preflight_options=_apigw.CorsOptions(
                 allow_methods=['GET', 'OPTIONS'],
                 allow_origins=_apigw.Cors.ALL_ORIGINS)
         )
-        example_plan = base_api.add_usage_plan(
+        claude2_plan = base_api.add_usage_plan(
             "default"
         )
-        example_key = base_api.add_api_key('apiKey')
-        example_key2 = base_api.add_api_key('apiKey2')
-        example_plan.add_api_key(example_key)
-        example_plan.add_api_key(example_key2)
-        example_plan.add_api_stage(
+        claude2_key = base_api.add_api_key('apiKey')
+        claude2_key2 = base_api.add_api_key('apiKey2')
+        claude2_plan.add_api_key(claude2_key)
+        claude2_plan.add_api_key(claude2_key2)
+        claude2_plan.add_api_stage(
             stage=base_api.deployment_stage
 
         )
-        example_entity_lambda_integration = _apigw.LambdaIntegration(
+        claude2_entity_lambda_integration = _apigw.LambdaIntegration(
             base_lambda,
             proxy=True
         )
         # setting up GET method for example entity
-        example_entity.add_method(
-            'GET', example_entity_lambda_integration,
+        claude2_entity.add_method(
+            'GET', claude2_entity_lambda_integration,
             method_responses=[
                 _apigw.MethodResponse(
                     status_code="200",
@@ -56,8 +56,8 @@ class AwsBedrockApigLambdaPythonStack(Stack):
             api_key_required=True
         )
         # setting up POST method for example entity
-        example_entity.add_method(
-            'POST', example_entity_lambda_integration,
+        claude2_entity.add_method(
+            'POST', claude2_entity_lambda_integration,
             method_responses=[
                 _apigw.MethodResponse(
                     status_code="200",
