@@ -17,26 +17,20 @@ class AwsBedrockApigLambdaPythonStack(Stack):
                                        timeout=Duration.seconds(300),
                                        code=_lambda.Code.from_asset('lambda'))
 
-        base_api = _apigw.RestApi(self, 'BedrockApiGatewayWithCors',
-                                  rest_api_name='BedrockApiGatewayWithCors')
+        # Lambda grant invoke to API Gateway
+        base_lambda.grant_invoke(_iam.ServicePrincipal('apigateway.amazonaws.com'))
 
-        # setting up example entity with plan and key
+
+        base_api = _apigw.RestApi(self, 'BedrockApiGatewayWithCors',
+                                  rest_api_name='BedrockApiGatewayWithCors', deploy=False)
+
+
+        # setting up example entity
         claude2_entity = base_api.root.add_resource(
-            'bedrock-claude2',
+            'complete',
             default_cors_preflight_options=_apigw.CorsOptions(
                 allow_methods=['GET', 'OPTIONS'],
                 allow_origins=_apigw.Cors.ALL_ORIGINS)
-        )
-        claude2_plan = base_api.add_usage_plan(
-            "default"
-        )
-        claude2_key = base_api.add_api_key('apiKey')
-        claude2_key2 = base_api.add_api_key('apiKey2')
-        claude2_plan.add_api_key(claude2_key)
-        claude2_plan.add_api_key(claude2_key2)
-        claude2_plan.add_api_stage(
-            stage=base_api.deployment_stage
-
         )
         claude2_entity_lambda_integration = _apigw.LambdaIntegration(
             base_lambda,
@@ -68,6 +62,24 @@ class AwsBedrockApigLambdaPythonStack(Stack):
             ],
             api_key_required=True
         )
+
+        # create an explicit Deployment construct
+        deployment = _apigw.Deployment(self, 'Deployment', api=base_api)
+        v1_stage = _apigw.Stage(self, 'v1Stage', deployment=deployment, stage_name='v1')
+        base_api.deployment_stage = v1_stage
+
+        # setup usage plan and key
+        claude2_plan = base_api.add_usage_plan(
+            "default"
+        )
+        claude2_key = base_api.add_api_key('apiKey')
+        claude2_key2 = base_api.add_api_key('apiKey2')
+        claude2_plan.add_api_key(claude2_key)
+        claude2_plan.add_api_key(claude2_key2)
+        claude2_plan.add_api_stage(
+            stage=base_api.deployment_stage
+        )
+
 
         # grant the lambda permission to invoke Bedrock AI models
         base_lambda.role.add_to_principal_policy(

@@ -1,5 +1,6 @@
 import boto3
 import json
+import logging
 bedrock = boto3.client(service_name='bedrock-runtime')
 
 def handler(event, context):
@@ -13,37 +14,38 @@ def handler(event, context):
         # if the method is POST, retrieve the body of the request
         body = event['body']
         if not verify_json_fields(body,
-                                  ["prompt", "max_tokens_to_sample", "temperature", "top_p", "top_k", "stop_sequences"]):
+                                  ["prompt", "max_tokens_to_sample", "temperature"]):
+            # other potential fields "top_p", "top_k", "stop_sequences"
+            # log the error with body of the request
+            logging.error(f'Invalid JSON body: {json.loads(body)}')
             # return a 400 Bad Request if the body does not contain the required fields
             return {
                 'statusCode': 400,
                 'body': f'Invalid JSON body: {body=}'
             }
-        # take out the "model" field in the body if it exists, and convert it back to string
+        # take out the "model", "stream"  field in the body if it exists, and convert it back to string
         body_obj = json.loads(body)
         if "model" in body_obj:
             body_obj.pop("model")
+        stream_enabled = False
+        if "stream" in body_obj:
+            stream_enabled = body_obj["stream"]
+            body_obj.pop("stream")
+        body_obj['anthropic_version'] = 'bedrock-2023-05-31'
         body = json.dumps(body_obj)
-
-        # # format the body as a json string
-        # body = json.dumps({
-        #     "prompt": f"\n\nHuman:{body}\n\nAssistant:",
-        #     "max_tokens_to_sample": 300,
-        #     "temperature": 0.1,
-        #     "top_p": 0.9,
-        #     "stop_sequences": [ "\\n\\nHuman:"]
-        # })
 
         modelId = 'anthropic.claude-v2'
         accept = 'application/json'
         contentType = 'application/json'
-
         response = bedrock.invoke_model(body=body, modelId=modelId, accept=accept, contentType=contentType)
 
-        response_body = json.loads(response.get('body').read())
+        response_body = response.get('body').read().decode('utf-8')
+        if stream_enabled:
+            response_body = f'event: completion\ndata:{response_body}\n\n'
+
         return {
             'statusCode': 200,
-            'body': f'{response_body}'
+            'body': response_body
         }
     return {
         'statusCode': 200,
